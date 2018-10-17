@@ -1,25 +1,76 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "PA1_template"
+author: "Owen"
+date: "10/15/2018"
+output: html_document
 ---
 
-
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
+# Loading and preprocessing the data
+```{r}
+raw_data <- read.csv('./activity.csv')
+library(reshape2)
+dcast_data <- dcast(raw_data, steps + interval ~ date)
+no_na_data <- na.omit(dcast_data)
+```
 
 
+# What is mean total number of steps taken per day?
+```{r}
+sum_steps <- aggregate(. ~ date, data = raw_data[,-3], sum)
+library(ggplot2)
+g1 <- ggplot(data = sum_steps, aes(steps))
+g1 <- g1 + geom_histogram() + labs(title = 'the sum of steps per day')
+g1
 
-## Imputing missing values
+mean(sum_steps$steps)
+median(sum_steps$steps)
+```
 
 
+# What is the average daily activity pattern?
+```{r}
+average_steps <- aggregate(. ~ interval, data = raw_data[, -2], mean)
+plot(average_steps$interval, average_steps$steps, type = 'l', ann = F)
+title(xlab = 'interval', ylab = 'steps', main = 'average number of steps taken, averaged across all days')
+index <- which.max(average_steps$steps)
+average_steps[index,]$interval
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+
+# Imputing missing values
+```{r}
+total_NAs <- nrow(raw_data) - nrow(na.omit(raw_data))
+list_NA <- which(rowSums(is.na(raw_data)) > 0)
+for (i in list_NA){
+    if (i %% 288 !=0) raw_data$steps[i] <- average_steps$steps[i %% 288]
+    else raw_data$steps[i] <- average_steps$steps[288]
+}
+
+new_data <- raw_data
+sum_steps1 <- aggregate(. ~ date, data = new_data[,-3], sum)
+library(ggplot2)
+g1 <- ggplot(data = sum_steps1, aes(steps))
+g1 <- g1 + geom_histogram() + labs(title = 'the sum of steps per day')
+g1
+mean(sum_steps1$steps)
+median(sum_steps1$steps)
+```
+
+Yes, they are different; steps become more.
+
+# Are there differences in activity patterns between weekdays and weekends?
+```{r}
+weekday_weekend <- weekdays(as.Date(new_data$date))
+weekday_weekend[weekday_weekend == '星期六'] <- 'weekend'
+weekday_weekend[weekday_weekend == '星期日'] <- 'weekend'
+weekday_weekend[weekday_weekend == '星期一'] <- 'weekday'
+weekday_weekend[weekday_weekend == '星期二'] <- 'weekday'
+weekday_weekend[weekday_weekend == '星期三'] <- 'weekday'
+weekday_weekend[weekday_weekend == '星期四'] <- 'weekday'
+weekday_weekend[weekday_weekend == '星期五'] <- 'weekday'
+new_data2 <- cbind(new_data, weekday_weekend)
+
+average_steps1 <- aggregate(. ~ interval + date + weekday_weekend, data = new_data, mean)
+g2 <- ggplot(average_steps1, aes(x = interval, y = steps)) + geom_line(color = 'blue') + facet_grid( weekday_weekend ~ .)
+g2
+```
